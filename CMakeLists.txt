@@ -31,7 +31,7 @@ file(GLOB SRC_track src/track/*.cpp src/track/*.cu)
 
 cuda_add_library(infer_algo SHARED ${SRC_infer} ${SRC_track})
 target_include_directories(infer_algo PRIVATE ${TensorRT_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${TensorRT_SAMPLE_DIR}/common 3rdparty/Eigen3)
-target_include_directories(infer_algo PUBLIC include src src/utils)
+target_include_directories(infer_algo PUBLIC include src src/utils src/infer)
 target_link_libraries(infer_algo ${TensorRT_LIBRARIES} ${OpenCV_LIBRARIES})
 
 # cuda_add_library(track_algo SHARED ${SRC_track})

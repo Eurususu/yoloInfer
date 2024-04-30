@@ -12,6 +12,7 @@
 #include <cassert>
 #include "nv_int8Calibrator.hpp"
 #include "ImageBatch.hpp"
+#include "reporting.h"
 
 namespace anktech
 {
@@ -374,13 +375,18 @@ int32_t InferenceEngine::doInference(cudaStream_t &stream, int batchsize)
 {
     if (m_trtExecContext)
     {
+        // 打开计算统计会耗费时间，真正运行时，建议关闭
+        auto mProfile = new Profiler(); // 用于统计每层计算量的profile
+        m_trtExecContext->setProfiler(mProfile); // 添加profile到context中
         m_trtExecContext->setOptimizationProfileAsync(0, stream);
         auto dim = m_trtExecContext->getBindingDimensions(0);
         dim.d[0] = batchsize;
         m_trtExecContext->setBindingDimensions(0, dim); 
         
         m_trtExecContext->enqueueV2(&m_gpuBuffers[0], stream, nullptr);
-        // m_trtExecContext->enqueueV2(m_DeviceBuffer->getDeviceBindings().data(), stream, nullptr);
+        const std::string filename {"./report.txt"}; // 计算量结果
+        mProfile->exportJSONProfile(filename); // 写入
+        delete mProfile; // 释放profile
     }
     else
         return FAIL;
