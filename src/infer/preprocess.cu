@@ -5,7 +5,6 @@
 namespace anktech{
 
 static uint8_t *img_buffer_device = nullptr;
-static uint8_t *img_buffer_device_ = nullptr;
 
 struct AffineMatrix
 {

@@ -232,7 +232,11 @@ void InferenceEngine::allocateGpuMemory()
     for (int i = 0; i < nbBindings; i++)
     {
         nvinfer1::Dims dims = m_trtEngine->getBindingDimensions(i);
-        dims.d[0] = m_batchSize; // 设置输入输出的batch大小
+        // 如果是动态batch的话，通过外部传入参数设置batchsize
+        if (dims.d[0] == -1){
+            dims.d[0] = m_batchSize;
+        }
+        // dims.d[0] = m_batchSize; // 设置输入输出的batch大小
         nvinfer1::DataType dataType = m_trtEngine->getBindingDataType(i);
         auto pName = m_trtEngine->getBindingName(i);
 
@@ -376,17 +380,22 @@ int32_t InferenceEngine::doInference(cudaStream_t &stream, int batchsize)
     if (m_trtExecContext)
     {
         // 打开计算统计会耗费时间，真正运行时，建议关闭
-        auto mProfile = new Profiler(); // 用于统计每层计算量的profile
-        m_trtExecContext->setProfiler(mProfile); // 添加profile到context中
+        // auto mProfile = new Profiler(); // 用于统计每层计算量的profile
+        // m_trtExecContext->setProfiler(mProfile); // 添加profile到context中
         m_trtExecContext->setOptimizationProfileAsync(0, stream);
+
+        // 根据输入的batch size重新指定bindingds对应的batch size, batchsize为8的模型也可以推理一张图片
         auto dim = m_trtExecContext->getBindingDimensions(0);
-        dim.d[0] = batchsize;
-        m_trtExecContext->setBindingDimensions(0, dim); 
+        if (dim.d[0] == -1){
+            dim.d[0] = batchsize;
+            m_trtExecContext->setBindingDimensions(0, dim); 
+        }
+        
         
         m_trtExecContext->enqueueV2(&m_gpuBuffers[0], stream, nullptr);
-        const std::string filename {"./report.txt"}; // 计算量结果
-        mProfile->exportJSONProfile(filename); // 写入
-        delete mProfile; // 释放profile
+        // const std::string filename {"./report.txt"}; // 计算量结果
+        // mProfile->exportJSONProfile(filename); // 写入
+        // delete mProfile; // 释放profile
     }
     else
         return FAIL;

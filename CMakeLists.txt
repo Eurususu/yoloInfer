@@ -27,11 +27,11 @@ include_directories(${CUDA_INCLUDE_DIRS})
 link_directories(/usr/local/cuda/lib64)
 
 file(GLOB SRC_infer src/infer/*.cpp src/infer/*.cu src/infer/*.hpp)
-file(GLOB SRC_track src/track/*.cpp src/track/*.cu)
+file(GLOB SRC_track src/track/bytetrack/*.cpp src/track/bytetrack/*.cu)
 
 cuda_add_library(infer_algo SHARED ${SRC_infer} ${SRC_track})
-target_include_directories(infer_algo PRIVATE ${TensorRT_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${TensorRT_SAMPLE_DIR}/common 3rdparty/Eigen3)
-target_include_directories(infer_algo PUBLIC include src src/utils src/infer)
+target_include_directories(infer_algo PRIVATE ${TensorRT_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${TensorRT_SAMPLE_DIR}/common)
+target_include_directories(infer_algo PUBLIC include src src/utils src/infer src/track/bytetrack 3rdparty/Eigen3)
 target_link_libraries(infer_algo ${TensorRT_LIBRARIES} ${OpenCV_LIBRARIES})
 
 # cuda_add_library(track_algo SHARED ${SRC_track})
@@ -39,7 +39,7 @@ target_link_libraries(infer_algo ${TensorRT_LIBRARIES} ${OpenCV_LIBRARIES})
 message(STATUS ${OpenCV_INCLUDE_DIRS})
 
 cuda_add_executable(test test.cpp)
-target_include_directories(test PRIVATE ${OpenCV_INCLUDE_DIRS} ${TensorRT_SAMPLE_DIR}/common src/infer)
+target_include_directories(test PRIVATE ${OpenCV_INCLUDE_DIRS} ${TensorRT_SAMPLE_DIR}/common src/infer src/track/bytetrack 3rdparty/Eigen3) 
 target_link_libraries(test infer_algo cuda nvcuvid nppicc nppig nvidia-encode)
 
 # add_executable(test1 test1.cpp)

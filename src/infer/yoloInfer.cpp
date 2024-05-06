@@ -71,9 +71,13 @@ int YoloInfer::initialize(const std::string &strOnnx, const std::string &calibCa
 
 void YoloInfer::preprocess(cv::Mat &src, std::vector<std::vector<float>> &scale, cudaStream_t &cudaStream){
     cuda_preprocess(src.ptr(), src.cols, src.rows, (float *)m_pTrtInferenceEngine->getInputBufferGpu(m_iname), m_inputWidth, m_inputHeight, cudaStream);
+    float temp1 = std::min(m_inputWidth * 1.0f /src.cols , m_inputHeight * 1.0f / src.rows);
+    float temp2 = (m_inputWidth - src.cols*temp1) / 2;
+    float temp3 = (m_inputHeight - src.rows*temp1) / 2;
     std::vector<float> temp;
-    temp.push_back(src.cols * 1.0f / m_inputWidth);
-    temp.push_back(src.rows * 1.0f / m_inputHeight);
+    temp.push_back(temp1);
+    temp.push_back(temp2);
+    temp.push_back(temp3);
     scale.push_back(temp);
 }
 
@@ -112,10 +116,12 @@ void YoloInfer::postprocess(std::shared_ptr<Out_boxes> out_boxes, const std::vec
         size_t numDets = m_outputCPU0[b];
         for (size_t i = 0; i < numDets; ++i){
             BBox box;
-            box.rect.x = std::max(0.f, m_outputCPU1[b*100*4 + i*4 + 0]) * s[0];
-            box.rect.y = std::max(0.f, m_outputCPU1[b*100*4 + i*4 + 1]) * s[1];
-            box.rect.width = std::min(static_cast<float>(m_inputWidth), m_outputCPU1[b*100*4 + i*4 + 2]) * s[0] - box.rect.x;
-            box.rect.height = std::min(static_cast<float>(m_inputHeight), m_outputCPU1[b*100*4 + i*4 + 3]) * s[1] - box.rect.y;
+            box.rect.x = std::max(0.f, ((m_outputCPU1[b*100*4 + i*4 + 0]) - s[1])) / s[0];
+            box.rect.y = std::max(0.f, ((m_outputCPU1[b*100*4 + i*4 + 1]) - s[2])) / s[0];
+            float x2 = std::min(static_cast<float>(m_inputWidth), ((m_outputCPU1[b*100*4 + i*4 + 2]) - s[1])) / s[0];
+            float y2 = std::min(static_cast<float>(m_inputHeight), ((m_outputCPU1[b*100*4 + i*4 + 3]) - s[2])) / s[0];
+            box.rect.width = x2 - box.rect.x;
+            box.rect.height = y2 - box.rect.y;
             box.prob = m_outputCPU2[b*100 + i];
             box.label = m_outputCPU3[b*100 + i];
             out_boxes->bboxes[b].push_back(box);

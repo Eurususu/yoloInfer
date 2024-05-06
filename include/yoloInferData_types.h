@@ -22,7 +22,7 @@ struct BBox
 {
     float prob;
     int label;
-    cv::Rect_<float> rect;
+    cv::Rect_<float> rect; // lf x, lf y, w, h
 };
 
 struct Out_boxes

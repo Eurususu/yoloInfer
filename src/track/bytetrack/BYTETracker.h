@@ -1,13 +1,15 @@
 #pragma once
 
 #include "STrack.h"
+#include "yoloInferData_types.h"
 
-struct Object
-{
-    cv::Rect_<float> rect;
-    int label;
-    float prob;
-};
+// struct Object
+// {
+//     cv::Rect_<float> rect;
+//     int label;
+//     float prob;
+// };
+using Object = anktech::BBox;
 
 class BYTETracker
 {

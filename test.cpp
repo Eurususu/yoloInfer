@@ -4,20 +4,25 @@
 #include "common.h"
 #include "buffers.h"
 #include "cuda_runtime_api.h"
+#include "BYTETracker.h"
+
 using namespace anktech;
 int main(){
     auto infer = std::make_shared<YoloInfer>();
-    std::string onnx_path {"/home/jia/project/trt_infer/model/yolov7_3classes_fp16.onnx"};
-    std::string trt_path {"/home/jia/project/trt_infer/model/yolov7_3classes_int8.engine"};
+    auto tracker0 = std::make_shared<BYTETracker>();
+    auto tracker1 = std::make_shared<BYTETracker>();
+    auto tracker2 = std::make_shared<BYTETracker>();
+    std::string onnx_path {"/home/jia/project/trt_infer/model/best_tiny_fp16_dy.onnx"};
+    std::string trt_path {"/home/jia/project/trt_infer/model/best_tiny_int8_dy.engine"};
     std::string calibCache {"/home/jia/project/trt_infer/model/3classes.cache"};
     std::string dataDir {"/home/jia/project/trt_infer/data/val"};
     // std::string fileList {"/home/jia/project/trt_infer/data/fileList.txt"};
     int calib_batch_size {8}; 
     int calib_num_images {139};
-    uint32_t batchSize {1};
+    uint32_t batchSize {8};
     Prec_t prec = Prec_t::INT8;
     uint32_t gpuID {0};
-    bool end2end {true};
+    bool end2end {false};
     bool V8 {false};
 
     cudaStream_t cudaStream;
@@ -62,20 +67,53 @@ int main(){
         auto fps = 1000.0f / elapsed;
         auto fps_str = std::to_string(fps) + "fps";
         std::cout << "完成第" << frame_index << "帧" << std::endl;
-
-        for (auto& boxes : out_boxes->bboxes){
-            for (auto &box : boxes){
-                if (box.prob > 0.4 && box.label == 0)
-                cv::rectangle(frame, {box.rect.x, box.rect.y, box.rect.width, box.rect.height}, {150, 150, 180}, 2);
-                else if(box.prob > 0.4 && box.label == 1)
-                cv::rectangle(frame, {box.rect.x, box.rect.y, box.rect.width, box.rect.height}, {150, 0, 180}, 2);
-                else if(box.prob > 0.4 && box.label == 2)
-                cv::rectangle(frame, {box.rect.x, box.rect.y, box.rect.width, box.rect.height}, {150, 250, 180}, 2);
-                else
-                continue;
+        for (auto &batch: out_boxes->bboxes){
+            std::vector<BBox> bboxes0;
+            std::vector<BBox> bboxes1;
+            std::vector<BBox> bboxes2;
+            for (auto& box : batch){
+                if (box.label == 0){
+                    bboxes0.push_back(box);
+                }
+                else if(box.label == 1){
+                    bboxes1.push_back(box);
+                }
+                else if(box.label == 2){
+                    bboxes2.push_back(box);
+                }
+            };
+            auto out_boxes0 = tracker0->update(bboxes0);
+            for (auto &box0 : out_boxes0){
+                cv::rectangle(frame, cv::Rect(box0.tlwh[0], box0.tlwh[1], box0.tlwh[2], box0.tlwh[3]), cv::Scalar(150, 150, 180), 2);
+                cv::putText(frame, format("%d", box0.track_id), Point(box0.tlwh[0], box0.tlwh[1] - 5),0, 0.6, cv::Scalar(150, 150, 180), 2, cv::LINE_AA);
+                
+            }
+            auto out_boxes1 = tracker1->update(bboxes1);
+            for (auto &box1 : out_boxes1){
+                cv::rectangle(frame, cv::Rect(box1.tlwh[0], box1.tlwh[1], box1.tlwh[2], box1.tlwh[3]), cv::Scalar(150, 0, 180), 2);
+                cv::putText(frame, format("%d", box1.track_id), Point(box1.tlwh[0], box1.tlwh[1] - 5),0, 0.6, cv::Scalar(150, 0, 180), 2, cv::LINE_AA);
+            }
+            auto out_boxes2 = tracker2->update(bboxes2);
+            for (auto &box2 : out_boxes2){
+                cv::rectangle(frame, cv::Rect(box2.tlwh[0], box2.tlwh[1], box2.tlwh[2], box2.tlwh[3]), cv::Scalar(150, 250, 180), 2);
+                cv::putText(frame, format("%d", box2.track_id), Point(box2.tlwh[0], box2.tlwh[1] - 5),0, 0.6, cv::Scalar(150, 250, 180), 2, cv::LINE_AA);
             }
         }
         writer.write(frame);
+        
+        // for (auto& boxes : out_boxes->bboxes){
+        //     for (auto &box : boxes){
+        //         if (box.prob > 0.4 && box.label == 0)
+        //         cv::rectangle(frame, {box.rect.x, box.rect.y, box.rect.width, box.rect.height}, {150, 150, 180}, 2);
+        //         else if(box.prob > 0.4 && box.label == 1)
+        //         cv::rectangle(frame, {box.rect.x, box.rect.y, box.rect.width, box.rect.height}, {150, 0, 180}, 2);
+        //         else if(box.prob > 0.4 && box.label == 2)
+        //         cv::rectangle(frame, {box.rect.x, box.rect.y, box.rect.width, box.rect.height}, {150, 250, 180}, 2);
+        //         else
+        //         continue;
+        //     }
+        // }
+        // writer.write(frame);
 
     }
 
