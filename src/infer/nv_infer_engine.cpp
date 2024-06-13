@@ -117,7 +117,7 @@ nvinfer1::IHostMemory *InferenceEngine::convertOnnxToTrtModel(const std::string 
     // config->setMemoryPoolLimit(nvinfer1::MemoryPoolType::kWORKSPACE, (std::size_t)1 << 33);
     config->setMaxWorkspaceSize((uint64_t)1 << 33);
     // 添加efficient nms
-    if (end2end) network = addEfficientNMS(std::move(network), V8=V8);
+    if (end2end) network = addEfficientNMS(std::move(network),0.25, 0.65, 100, V8);
     if (precisionType == FP16 && builder->platformHasFastFp16())
     {
         config->setFlag(nvinfer1::BuilderFlag::kFP16);
@@ -128,6 +128,24 @@ nvinfer1::IHostMemory *InferenceEngine::convertOnnxToTrtModel(const std::string 
         config->setFlag(nvinfer1::BuilderFlag::kFP16);
         config->setFlag(nvinfer1::BuilderFlag::kINT8);
         gLogger.log(nvinfer1::ILogger::Severity::kWARNING, "building INT8 engine.");
+        // 检查模型是否包含Q/DQ节点
+        bool hasQDQ = false;
+        for (int i = 0; i < network->getNbLayers(); ++i)
+        {
+            auto layer = network->getLayer(i);
+            if (layer->getType() == nvinfer1::LayerType::kQUANTIZE || layer->getType() == nvinfer1::LayerType::kDEQUANTIZE)
+            {
+                hasQDQ = true;
+                break;
+            }
+        }
+
+        if (hasQDQ)
+        {
+            gLogger.log(nvinfer1::ILogger::Severity::kINFO, "Detected Q/DQ nodes in the model, no calibrator needed.");
+        }
+        else
+        {
         auto calibrator = new EngineCalibrator(calibCache);
         config->setInt8Calibrator(calibrator);
         if (!std::filesystem::exists(calibCache)){
@@ -138,8 +156,8 @@ nvinfer1::IHostMemory *InferenceEngine::convertOnnxToTrtModel(const std::string 
             // std::string calib_dtype = inputs_dtype;  // Convert dtype if necessary
             auto imgBatcher = std::make_shared<ImageBatcher>(dataDir, calib_shape, nvinfer1::DataType::kFLOAT, calib_num_images,true);
             calibrator->setImageBatcher(imgBatcher);
+        }    
         }
-
     }
     trtModelStream = builder->buildSerializedNetwork(*network, *config);
     return trtModelStream;

@@ -21,7 +21,7 @@ class YoloInfer
         int Inference(std::shared_ptr<Out_boxes> out_boxes, const std::vector<std::vector<float>> &scale, cudaStream_t &cudaStream);
         void postprocess(std::shared_ptr<Out_boxes> out_boxes, const std::vector<std::vector<float>> &scale, cudaStream_t &cudaStream);
 
-        
+
     private:
         // 构造函数
         std::shared_ptr<InferenceEngine> m_pTrtInferenceEngine{nullptr};

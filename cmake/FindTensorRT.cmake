@@ -3,12 +3,12 @@ include(FindPackageHandleStandardArgs)
 
 ## 用户可以输入的TensorRT 搜索路径
 set(TensorRT_ROOT
-  /opt/TensorRT-8.6.1.6/lib
-  /opt/TensorRT-8.6.1.6/include
-  /opt/TensorRT-8.6.1.6
+  /opt/TensorRT/lib
+  /opt/TensorRT/include
+  /opt/TensorRT
   )
 
-## 设置TensorRT 搜索路径
+# 设置TensorRT 搜索路径
 set(TensorRT_SEARCH_PATH
   /usr/include/x86_64-linux-gnu
   /usr/src/tensorrt
