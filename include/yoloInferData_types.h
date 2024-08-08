@@ -30,6 +30,16 @@ struct Out_boxes
     std::vector<std::vector<BBox>> bboxes;
 };
 
+struct Points
+{
+    std::vector<std::vector<cv::Point2f>> points;
+};
+
+struct Scores
+{
+    std::vector<std::vector<float>> scores;
+};
+
 const static char* kInputTensorName = "images";
 
 }

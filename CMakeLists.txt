@@ -38,11 +38,11 @@ target_link_libraries(infer_algo ${TensorRT_LIBRARIES} ${OpenCV_LIBRARIES})
 
 message(STATUS ${OpenCV_INCLUDE_DIRS})
 
-cuda_add_executable(test test.cpp)
-target_include_directories(test PRIVATE ${TensorRT_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS} ${TensorRT_SAMPLE_DIR}/common src/infer src/track/bytetrack 3rdparty/Eigen3) 
-target_link_libraries(test infer_algo cuda nvcuvid nppicc nppig nvidia-encode)
+# cuda_add_executable(test test.cpp)
+# target_include_directories(test PRIVATE ${TensorRT_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS} ${TensorRT_SAMPLE_DIR}/common src/infer src/track/bytetrack 3rdparty/Eigen3) 
+# target_link_libraries(test infer_algo cuda nvcuvid nppicc nppig nvidia-encode)
 
-# add_executable(test1 test1.cpp)
-# target_include_directories(test1 PRIVATE ${OpenCV_INCLUDE_DIRS})
-# target_link_libraries(test1 ${OpenCV_LIBRARIES})
+add_executable(test1 test1.cpp)
+target_include_directories(test1 PRIVATE ${TensorRT_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS} ${TensorRT_SAMPLE_DIR}/common src/infer)
+target_link_libraries(test1 infer_algo cuda nvcuvid nppicc nppig nvidia-encode)
 
