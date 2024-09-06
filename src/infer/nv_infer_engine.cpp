@@ -493,6 +493,9 @@ std::unique_ptr<nvinfer1::INetworkDefinition> InferenceEngine::addEfficientNMS(s
     nvinfer1::ITensor* boxes;
     nvinfer1::ITensor* obj_score;
     nvinfer1::ITensor* scores;
+    weight_buffer.assign(9 * sizeof(int), 0);
+    int* p_buf = (int*)weight_buffer.data();
+    nvinfer1::Weights weight {nvinfer1::DataType::kINT32, p_buf, 3};
     if (not V8)
     {
         // output [1, 8400, 85]
@@ -503,30 +506,73 @@ std::unique_ptr<nvinfer1::INetworkDefinition> InferenceEngine::addEfficientNMS(s
         strides.d[1] = 1;
         strides.d[2] = 1;
         nvinfer1::Dims starts;
+        nvinfer1::Dims &dummy = starts;
         starts.nbDims = 3;
         starts.d[0] = 0;
         starts.d[1] = 0;
         starts.d[2] = 0;
         nvinfer1::Dims previousShape = previous_output->getDimensions();
-        int bs = previousShape.d[0];
-        if (bs==-1) bs = 1;
+        // int bs = previousShape.d[0];
+        // if (bs==-1) bs = 1;
         int num_boxes = previousShape.d[1];
         int temp = previousShape.d[2];
-        nvinfer1::Dims shapes;
-        shapes.nbDims = 3;
-        shapes.d[0] = bs;
-        shapes.d[1] = num_boxes;
-        shapes.d[2] = 4;
+        // nvinfer1::Dims shapes;
+        // shapes.nbDims = 3;
+        // shapes.d[0] = bs;
+        // shapes.d[1] = num_boxes;
+        // shapes.d[2] = 4;
+        p_buf[2] = previousShape.d[2] - 4;
+        p_buf[5] = previousShape.d[2] - 1;
+        p_buf[8] = 5;
+        nvinfer1::Dims constant_dim;
+        constant_dim.nbDims = 1;
+        constant_dim.d[0] = 3;
+        auto *shape = network->addShape(*previous_output);
+        auto *constant = network->addConstant(constant_dim, weight);
+        auto *elewise = network->addElementWise(
+            *shape->getOutput(0),
+            *constant->getOutput(0),
+            nvinfer1::ElementWiseOperation::kSUB
+        );
+        auto* box_slice = network->addSlice(*previous_output, starts, dummy, strides);
+        box_slice->setInput(2, *elewise->getOutput(0));
+        boxes = box_slice->getOutput(0);
 
-        boxes = network->addSlice(*previous_output, starts, shapes, strides)->getOutput(0);
-        int num_clasees = temp - 5;
+        weight.values = p_buf + 3;
         starts.d[2] = 4;
-        shapes.d[2] = 1;
-        obj_score = network->addSlice(*previous_output, starts, shapes, strides)->getOutput(0);
+        constant = network->addConstant(constant_dim, weight);
+        elewise = network->addElementWise(
+            *shape->getOutput(0),
+            *constant->getOutput(0),
+            nvinfer1::ElementWiseOperation::kSUB
+        );
+        auto* objscore_slice = network->addSlice(*previous_output, starts, dummy, strides);
+        objscore_slice->setInput(2, *elewise->getOutput(0));
+        obj_score = objscore_slice->getOutput(0);
+        weight.values = p_buf + 6;
         starts.d[2] = 5;
-        shapes.d[2] = num_clasees;
-        scores = network->addSlice(*previous_output, starts, shapes, strides)->getOutput(0);
-        scores = network->addElementWise(*obj_score, *scores, nvinfer1::ElementWiseOperation::kPROD)->getOutput(0);
+        constant = network->addConstant(constant_dim, weight);
+        elewise = network->addElementWise(
+            *shape->getOutput(0),
+            *constant->getOutput(0),
+            nvinfer1::ElementWiseOperation::kSUB
+        );
+        auto* score_slice = network->addSlice(*previous_output, starts, dummy, strides);
+        score_slice->setInput(2, *elewise->getOutput(0));
+        scores = network->addElementWise(
+            *objscore_slice->getOutput(0),
+            *score_slice->getOutput(0),
+            nvinfer1::ElementWiseOperation::kPROD
+        )->getOutput(0);
+        // boxes = network->addSlice(*previous_output, starts, shapes, strides)->getOutput(0);
+        // int num_clasees = temp - 5;
+        // starts.d[2] = 4;
+        // shapes.d[2] = 1;
+        // obj_score = network->addSlice(*previous_output, starts, shapes, strides)->getOutput(0);
+        // starts.d[2] = 5;
+        // shapes.d[2] = num_clasees;
+        // scores = network->addSlice(*previous_output, starts, shapes, strides)->getOutput(0);
+        // scores = network->addElementWise(*obj_score, *scores, nvinfer1::ElementWiseOperation::kPROD)->getOutput(0);
     }
     else
     {
@@ -536,6 +582,7 @@ std::unique_ptr<nvinfer1::INetworkDefinition> InferenceEngine::addEfficientNMS(s
         strides.d[1] = 1;
         strides.d[2] = 1;
         nvinfer1::Dims starts;
+        nvinfer1::Dims &dummy = starts;
         starts.nbDims = 3;
         starts.d[0] = 0;
         starts.d[1] = 0;
@@ -544,21 +591,48 @@ std::unique_ptr<nvinfer1::INetworkDefinition> InferenceEngine::addEfficientNMS(s
         shuffle->setSecondTranspose({0, 2, 1});
         nvinfer1::ITensor* shuffled_output = shuffle->getOutput(0);
         nvinfer1::Dims previousShape = shuffled_output->getDimensions();
-        int bs = previousShape.d[0];
-        if (bs == -1) bs = 1;
+        // int bs = previousShape.d[0];
+        // if (bs == -1) bs = 1;
         int num_boxes = previousShape.d[1];
         int temp = previousShape.d[2];
-        nvinfer1::Dims shapes;
-        shapes.nbDims = 3;
-        shapes.d[0] = bs;
-        shapes.d[1] = num_boxes;
-        shapes.d[2] = 4;
+        // nvinfer1::Dims shapes;
+        // shapes.nbDims = 3;
+        // shapes.d[0] = bs;
+        // shapes.d[1] = num_boxes;
+        // shapes.d[2] = 4;
+        p_buf[2] = previousShape.d[2] - 4;
+        p_buf[5] = 4;
+        auto* shape = network->addShape(*shuffled_output);
+        nvinfer1::Dims constant_dim;
+        constant_dim.nbDims = 1;
+        constant_dim.d[0] = 3;
+        auto* constant = network->addConstant(constant_dim, weight);
+        auto* elewise = network->addElementWise(
+            *shape->getOutput(0),
+            *constant->getOutput(0),
+            nvinfer1::ElementWiseOperation::kSUB
+        );
+        auto *box_slice = network->addSlice(*shuffled_output, starts, dummy, strides);
+        box_slice->setInput(2, *elewise->getOutput(0));
+        boxes = box_slice->getOutput(0);
 
-        boxes = network->addSlice(*shuffled_output, starts, shapes, strides)->getOutput(0);
-        int num_classes = temp - 4;
+        weight.values = p_buf + 3;
         starts.d[2] = 4;
-        shapes.d[2] = num_classes;
-        scores = network->addSlice(*shuffled_output, starts, shapes, strides)->getOutput(0);         
+        constant = network->addConstant(constant_dim, weight);
+        elewise = network->addElementWise(
+            *shape->getOutput(0),
+            *constant->getOutput(0),
+            nvinfer1::ElementWiseOperation::kSUB
+        );
+        auto* score_slice = network->addSlice(*shuffled_output, starts, starts, strides);
+        score_slice->setInput(2, *elewise->getOutput(0));
+        scores = score_slice->getOutput(0);
+        
+        // boxes = network->addSlice(*shuffled_output, starts, shapes, strides)->getOutput(0);
+        // int num_classes = temp - 4;
+        // starts.d[2] = 4;
+        // shapes.d[2] = num_classes;
+        // scores = network->addSlice(*shuffled_output, starts, shapes, strides)->getOutput(0);         
     }
     // Create EfficientNMS plugin layer
     /*

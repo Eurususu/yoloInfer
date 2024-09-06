@@ -76,6 +76,7 @@ class InferenceEngine
     static void WriteBuffer(void *buffer, size_t size, const std::string &strTrtModel);
 
   protected:
+    std::vector<char> weight_buffer;
     bool m_debugMode{false};
     bool m_dumped{false}; 
     uint32_t m_batchSize; // batch size
